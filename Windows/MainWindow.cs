@@ -2,6 +2,8 @@ using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin.Services;
 using System.Numerics;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using WeiyueMistakeTTS.Models;
 using WeiyueMistakeTTS.Services;
 
@@ -32,6 +34,7 @@ public sealed class MainWindow : Window
     private readonly TimelineService timelineService;
     private readonly EncounterClock clock;
     private readonly TtsService ttsService;
+    private readonly PartyService partyService;
     private readonly IClientState clientState;
     private readonly Action saveConfig;
 
@@ -39,6 +42,10 @@ public sealed class MainWindow : Window
     private string newMemberWorld = string.Empty;
     private string newMemberJob = string.Empty;
     private string newMemberAlias = string.Empty;
+    private string selectedGroupId = "default-group";
+    private string newGroupName = string.Empty;
+    private string groupImportExportText = string.Empty;
+    private string groupImportStatus = string.Empty;
 
     private string selectedEncounterId = "default";
     private string selectedMechanicId = "stack-1";
@@ -60,6 +67,7 @@ public sealed class MainWindow : Window
         TimelineService timelineService,
         EncounterClock clock,
         TtsService ttsService,
+        PartyService partyService,
         IClientState clientState,
         Action saveConfig)
         : base("卫月犯错提醒###WeiyueMistakeTTS")
@@ -69,6 +77,7 @@ public sealed class MainWindow : Window
         this.timelineService = timelineService;
         this.clock = clock;
         this.ttsService = ttsService;
+        this.partyService = partyService;
         this.clientState = clientState;
         this.saveConfig = saveConfig;
 
@@ -77,6 +86,7 @@ public sealed class MainWindow : Window
 
         this.selectedEncounterId = this.dataStore.Data.Encounters.FirstOrDefault()?.Id ?? string.Empty;
         this.selectedMechanicId = this.SelectedEncounter?.Mechanics.FirstOrDefault()?.Id ?? string.Empty;
+        this.selectedGroupId = this.dataStore.Data.Groups.FirstOrDefault()?.Id ?? string.Empty;
     }
 
     private EncounterDefinition? SelectedEncounter =>
@@ -86,6 +96,10 @@ public sealed class MainWindow : Window
     private MechanicDefinition? SelectedMechanic =>
         this.SelectedEncounter?.Mechanics.FirstOrDefault(x => x.Id == this.selectedMechanicId)
         ?? this.SelectedEncounter?.Mechanics.FirstOrDefault();
+
+    private TeamGroup? SelectedGroup =>
+        this.dataStore.Data.Groups.FirstOrDefault(x => x.Id == this.selectedGroupId)
+        ?? this.dataStore.Data.Groups.FirstOrDefault();
 
     public override void Draw()
     {
@@ -111,6 +125,12 @@ public sealed class MainWindow : Window
             if (ImGui.BeginTabItem("成员"))
             {
                 this.DrawMembersTab();
+                ImGui.EndTabItem();
+            }
+
+            if (ImGui.BeginTabItem("队伍分组"))
+            {
+                this.DrawGroupsTab();
                 ImGui.EndTabItem();
             }
 
@@ -211,6 +231,93 @@ public sealed class MainWindow : Window
 
             ImGui.EndTable();
         }
+    }
+
+    private void DrawGroupsTab()
+    {
+        this.DrawGroupCombo();
+
+        ImGui.InputText("新分组名称", ref this.newGroupName, 64);
+        if (ImGui.Button("创建分组") && !string.IsNullOrWhiteSpace(this.newGroupName))
+        {
+            var group = this.dataStore.GetOrCreateGroup(this.newGroupName);
+            this.selectedGroupId = group.Id;
+            this.newGroupName = string.Empty;
+            this.dataStore.Save();
+        }
+
+        ImGui.SameLine();
+        if (ImGui.Button("一键导入当前小队") && this.SelectedGroup != null)
+        {
+            var count = this.partyService.ImportCurrentPartyToGroup(this.SelectedGroup);
+            this.groupImportStatus = $"已导入 {count} 名成员到 {this.SelectedGroup.Name}";
+        }
+
+        ImGui.SameLine();
+        if (ImGui.Button("删除当前分组") && this.SelectedGroup != null && this.dataStore.Data.Groups.Count > 1)
+        {
+            var group = this.SelectedGroup;
+            this.dataStore.Data.Groups.Remove(group);
+            this.selectedGroupId = this.dataStore.Data.Groups.FirstOrDefault()?.Id ?? string.Empty;
+            this.dataStore.Save();
+        }
+
+        if (!string.IsNullOrWhiteSpace(this.groupImportStatus))
+            ImGui.TextUnformatted(this.groupImportStatus);
+
+        ImGui.Separator();
+
+        var selectedGroup = this.SelectedGroup;
+        if (selectedGroup == null)
+            return;
+
+        if (ImGui.BeginTable("group-members-table", 5, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.Resizable))
+        {
+            ImGui.TableSetupColumn("角色");
+            ImGui.TableSetupColumn("服务器");
+            ImGui.TableSetupColumn("职业");
+            ImGui.TableSetupColumn("昵称");
+            ImGui.TableSetupColumn("操作");
+            ImGui.TableHeadersRow();
+
+            foreach (var memberId in selectedGroup.MemberIds.ToList())
+            {
+                var member = this.dataStore.Data.Members.FirstOrDefault(x => x.Id == memberId);
+                ImGui.TableNextRow();
+                ImGui.TableNextColumn();
+                ImGui.TextUnformatted(member?.Name ?? memberId);
+                ImGui.TableNextColumn();
+                ImGui.TextUnformatted(member?.World ?? string.Empty);
+                ImGui.TableNextColumn();
+                ImGui.TextUnformatted(member?.Job ?? string.Empty);
+                ImGui.TableNextColumn();
+                ImGui.TextUnformatted(member?.Alias ?? string.Empty);
+                ImGui.TableNextColumn();
+                if (ImGui.SmallButton($"移除##group-member-{memberId}"))
+                {
+                    selectedGroup.MemberIds.Remove(memberId);
+                    selectedGroup.UpdatedAt = DateTimeOffset.Now;
+                    this.dataStore.Save();
+                }
+            }
+
+            ImGui.EndTable();
+        }
+
+        ImGui.Separator();
+        ImGui.TextUnformatted("分组配置导入 / 导出");
+        if (ImGui.Button("生成当前分组 JSON"))
+            this.groupImportExportText = this.ExportGroup(selectedGroup);
+
+        ImGui.SameLine();
+        if (ImGui.Button("复制 JSON"))
+            ImGui.SetClipboardText(this.groupImportExportText);
+
+        ImGui.SameLine();
+        if (ImGui.Button("从下方 JSON 导入"))
+            this.ImportGroup(this.groupImportExportText);
+
+        ImGui.InputTextMultiline("分组 JSON", ref this.groupImportExportText, 8192, new Vector2(-1, 130));
     }
 
     private void DrawMembersTab()
@@ -499,6 +606,108 @@ public sealed class MainWindow : Window
         ImGui.EndCombo();
     }
 
+    private void DrawGroupCombo()
+    {
+        if (string.IsNullOrWhiteSpace(this.selectedGroupId) && this.dataStore.Data.Groups.Count > 0)
+            this.selectedGroupId = this.dataStore.Data.Groups[0].Id;
+
+        var current = this.SelectedGroup?.Name ?? "未选择";
+        if (!ImGui.BeginCombo("队伍分组", current))
+            return;
+
+        foreach (var group in this.dataStore.Data.Groups)
+        {
+            var selected = group.Id == this.selectedGroupId;
+            if (ImGui.Selectable($"{group.Name}##{group.Id}", selected))
+                this.selectedGroupId = group.Id;
+
+            if (selected)
+                ImGui.SetItemDefaultFocus();
+        }
+
+        ImGui.EndCombo();
+    }
+
+    private string ExportGroup(TeamGroup group)
+    {
+        var package = new TeamGroupPackage
+        {
+            Group = new TeamGroup
+            {
+                Id = group.Id,
+                Name = group.Name,
+                MemberIds = [.. group.MemberIds],
+                UpdatedAt = group.UpdatedAt,
+            },
+            Members = group.MemberIds
+                .Select(id => this.dataStore.Data.Members.FirstOrDefault(x => x.Id == id))
+                .Where(member => member != null)
+                .Select(member => member!)
+                .ToList(),
+        };
+
+        return JsonSerializer.Serialize(package, JsonOptions);
+    }
+
+    private void ImportGroup(string json)
+    {
+        try
+        {
+            var package = JsonSerializer.Deserialize<TeamGroupPackage>(json, JsonOptions);
+            if (package?.Group == null)
+            {
+                this.groupImportStatus = "导入失败：JSON 中没有队伍分组";
+                return;
+            }
+
+            foreach (var member in package.Members)
+            {
+                var existing = this.dataStore.Data.Members.FirstOrDefault(x => x.Id.Equals(member.Id, StringComparison.OrdinalIgnoreCase));
+                if (existing == null)
+                {
+                    this.dataStore.Data.Members.Add(member);
+                    continue;
+                }
+
+                existing.Name = member.Name;
+                existing.World = member.World;
+                existing.Job = member.Job;
+                existing.Alias = member.Alias;
+            }
+
+            var importedGroup = package.Group;
+            if (string.IsNullOrWhiteSpace(importedGroup.Id))
+                importedGroup.Id = Guid.NewGuid().ToString("N");
+
+            var existingGroup = this.dataStore.Data.Groups.FirstOrDefault(x =>
+                x.Id.Equals(importedGroup.Id, StringComparison.OrdinalIgnoreCase) ||
+                x.Name.Equals(importedGroup.Name, StringComparison.OrdinalIgnoreCase));
+
+            if (existingGroup == null)
+            {
+                importedGroup.UpdatedAt = DateTimeOffset.Now;
+                this.dataStore.Data.Groups.Add(importedGroup);
+                this.selectedGroupId = importedGroup.Id;
+            }
+            else
+            {
+                existingGroup.Name = importedGroup.Name;
+                existingGroup.MemberIds = importedGroup.MemberIds
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                existingGroup.UpdatedAt = DateTimeOffset.Now;
+                this.selectedGroupId = existingGroup.Id;
+            }
+
+            this.dataStore.Save();
+            this.groupImportStatus = $"已导入分组：{this.SelectedGroup?.Name ?? importedGroup.Name}";
+        }
+        catch (Exception ex)
+        {
+            this.groupImportStatus = $"导入失败：{ex.Message}";
+        }
+    }
+
     private static void DrawStringCombo(string label, ref string value, IReadOnlyList<string> options)
     {
         if (!ImGui.BeginCombo(label, value))
@@ -516,5 +725,19 @@ public sealed class MainWindow : Window
 
         ImGui.EndCombo();
     }
-}
 
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        WriteIndented = true,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+    };
+
+    private sealed class TeamGroupPackage
+    {
+        public int Version { get; set; } = 1;
+
+        public TeamGroup? Group { get; set; }
+
+        public List<TeamMember> Members { get; set; } = [];
+    }
+}

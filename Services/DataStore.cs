@@ -36,6 +36,9 @@ public sealed class DataStore
 
         if (this.Data.Encounters.Count == 0)
             this.Data.Encounters.Add(CreateDefaultEncounter());
+
+        if (this.Data.Groups.Count == 0)
+            this.Data.Groups.Add(CreateDefaultGroup());
     }
 
     public void Save()
@@ -67,6 +70,22 @@ public sealed class DataStore
         return member;
     }
 
+    public TeamGroup GetOrCreateGroup(string name)
+    {
+        var normalized = string.IsNullOrWhiteSpace(name) ? "默认队伍" : name.Trim();
+        var group = this.Data.Groups.FirstOrDefault(x => x.Name.Equals(normalized, StringComparison.OrdinalIgnoreCase));
+        if (group != null)
+            return group;
+
+        group = new TeamGroup
+        {
+            Name = normalized,
+        };
+        this.Data.Groups.Add(group);
+        this.Save();
+        return group;
+    }
+
     public static string MakeMemberId(string name, string world)
     {
         return string.IsNullOrWhiteSpace(world) ? name.Trim() : $"{name.Trim()}@{world.Trim()}";
@@ -76,7 +95,17 @@ public sealed class DataStore
     {
         return new PersistedData
         {
+            Groups = [CreateDefaultGroup()],
             Encounters = [CreateDefaultEncounter()],
+        };
+    }
+
+    private static TeamGroup CreateDefaultGroup()
+    {
+        return new TeamGroup
+        {
+            Id = "default-group",
+            Name = "默认队伍",
         };
     }
 
@@ -107,4 +136,3 @@ public sealed class DataStore
         };
     }
 }
-

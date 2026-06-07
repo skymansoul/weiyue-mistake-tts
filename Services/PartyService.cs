@@ -18,6 +18,16 @@ public sealed class PartyService
     {
         var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+        foreach (var member in this.GetCurrentPartyMembers())
+            ids.Add(member.Id);
+
+        return ids;
+    }
+
+    public IReadOnlyList<TeamMember> GetCurrentPartyMembers()
+    {
+        var members = new List<TeamMember>();
+
         foreach (var partyMember in this.partyList)
         {
             var name = partyMember.Name.TextValue;
@@ -27,10 +37,21 @@ public sealed class PartyService
             var world = partyMember.World.ValueNullable?.Name.ExtractText() ?? string.Empty;
             var job = partyMember.ClassJob.ValueNullable?.Abbreviation.ExtractText() ?? string.Empty;
             var member = this.dataStore.GetOrCreateMember(name, world, job);
-            ids.Add(member.Id);
+            members.Add(member);
         }
 
-        return ids;
+        return members;
+    }
+
+    public int ImportCurrentPartyToGroup(TeamGroup group)
+    {
+        var partyMembers = this.GetCurrentPartyMembers();
+        group.MemberIds = partyMembers
+            .Select(x => x.Id)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        group.UpdatedAt = DateTimeOffset.Now;
+        this.dataStore.Save();
+        return group.MemberIds.Count;
     }
 }
-

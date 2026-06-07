@@ -3,7 +3,7 @@
     "Author": "Weiyue",
     "Name": "Weiyue Mistake TTS",
     "InternalName": "WeiyueMistakeTTS",
-    "AssemblyVersion": "0.1.0.0",
+    "AssemblyVersion": "0.1.1.0",
     "Description": "本地记录团队成员机制失误，并在机制前通过 TTS 提醒。",
     "ApplicableVersion": "any",
     "RepoUrl": "https://example.invalid/weiyue-mistake-tts",

@@ -60,6 +60,7 @@ public sealed class Plugin : IDalamudPlugin
             this.timelineService,
             this.clock,
             this.ttsService,
+            this.partyService,
             this.clientState,
             this.SaveConfig);
         this.mainWindow.IsOpen = this.config.MainWindowOpen;
