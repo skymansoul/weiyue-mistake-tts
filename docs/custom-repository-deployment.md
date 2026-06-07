@@ -14,6 +14,14 @@ E:\win_c\Desktop\weiyue\custom-repo\plugins\WeiyueMistakeTTS\latest.zip
 E:\win_c\Desktop\weiyue\custom-repo\repo.json
 ```
 
+GitHub Raw 仓库地址：
+
+```text
+https://raw.githubusercontent.com/skymansoul/weiyue-mistake-tts/main/custom-repo/repo.json
+```
+
+Dalamud 中添加上面这个地址即可。
+
 ## 2. 推荐发布方式
 
 最省事的方式是静态托管：
@@ -114,4 +122,3 @@ custom-repo/plugins/WeiyueMistakeTTS/latest.zip
 - [ ] `AssemblyVersion` 和插件包中的版本一致
 - [ ] `DalamudApiLevel` 是当前目标 API Level
 - [ ] 队友添加的是 `repo.json` 地址，不是 zip 地址
-
