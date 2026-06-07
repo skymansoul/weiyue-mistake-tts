@@ -37,6 +37,10 @@ public sealed class TimelineService
         try
         {
             var territory = this.dataManager.GetExcelSheet<TerritoryType>().GetRowOrDefault(territoryType);
+            var dutyName = territory?.ContentFinderCondition.ValueNullable?.Name.ExtractText();
+            if (!string.IsNullOrWhiteSpace(dutyName))
+                return dutyName;
+
             var placeName = territory?.PlaceName.ValueNullable?.Name.ExtractText();
             if (!string.IsNullOrWhiteSpace(placeName))
                 return placeName;
@@ -47,6 +51,32 @@ public sealed class TimelineService
         }
 
         return $"Territory {territoryType}";
+    }
+
+    public MechanicDefinition AddMechanicAtCurrentTime(
+        EncounterDefinition encounter,
+        string mechanicName,
+        double elapsedSeconds,
+        double prewarnSeconds)
+    {
+        var name = string.IsNullOrWhiteSpace(mechanicName)
+            ? $"机制 {elapsedSeconds:F1}s"
+            : mechanicName.Trim();
+
+        var mechanic = new MechanicDefinition
+        {
+            Name = name,
+            TimeSeconds = Math.Max(0, elapsedSeconds),
+            PrewarnSeconds = Math.Max(0, prewarnSeconds),
+        };
+
+        encounter.Mechanics.Add(mechanic);
+        encounter.Mechanics = encounter.Mechanics
+            .OrderBy(x => x.TimeSeconds)
+            .ToList();
+        this.SelectedEncounterId = encounter.Id;
+        this.dataStore.Save();
+        return mechanic;
     }
 
     public EncounterDefinition GetOrCreateEncounterForTerritory(uint territoryType)

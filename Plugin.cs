@@ -52,7 +52,7 @@ public sealed class Plugin : IDalamudPlugin
         this.clock = new EncounterClock();
         this.ttsService = new TtsService(this.config, chatGui);
         this.reminderService = new ReminderService(this.config, this.dataStore, this.clock, this.ttsService);
-        this.partyService = new PartyService(partyList, this.dataStore);
+        this.partyService = new PartyService(partyList, this.dataStore, objectTable);
         this.castTriggerService = new CastTriggerService(objectTable, this.clock, this.reminderService);
 
         this.mainWindow = new MainWindow(

@@ -7,11 +7,13 @@ public sealed class PartyService
 {
     private readonly IPartyList partyList;
     private readonly DataStore dataStore;
+    private readonly IObjectTable objectTable;
 
-    public PartyService(IPartyList partyList, DataStore dataStore)
+    public PartyService(IPartyList partyList, DataStore dataStore, IObjectTable objectTable)
     {
         this.partyList = partyList;
         this.dataStore = dataStore;
+        this.objectTable = objectTable;
     }
 
     public IReadOnlySet<string> SyncCurrentParty()
@@ -27,6 +29,7 @@ public sealed class PartyService
     public IReadOnlyList<TeamMember> GetCurrentPartyMembers()
     {
         var members = new List<TeamMember>();
+        var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var partyMember in this.partyList)
         {
@@ -37,7 +40,24 @@ public sealed class PartyService
             var world = partyMember.World.ValueNullable?.Name.ExtractText() ?? string.Empty;
             var job = partyMember.ClassJob.ValueNullable?.Abbreviation.ExtractText() ?? string.Empty;
             var member = this.dataStore.GetOrCreateMember(name, world, job);
-            members.Add(member);
+            if (seenIds.Add(member.Id))
+                members.Add(member);
+        }
+
+        var localPlayer = this.objectTable.LocalPlayer;
+        if (localPlayer != null)
+        {
+            var name = localPlayer.Name.TextValue;
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                var world = localPlayer.HomeWorld.ValueNullable?.Name.ExtractText()
+                    ?? localPlayer.CurrentWorld.ValueNullable?.Name.ExtractText()
+                    ?? string.Empty;
+                var job = localPlayer.ClassJob.ValueNullable?.Abbreviation.ExtractText() ?? string.Empty;
+                var member = this.dataStore.GetOrCreateMember(name, world, job);
+                if (seenIds.Add(member.Id))
+                    members.Add(member);
+            }
         }
 
         return members;

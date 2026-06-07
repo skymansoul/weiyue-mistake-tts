@@ -60,6 +60,7 @@ public sealed class MainWindow : Window
     private float newMechanicPrewarn = 8;
     private int newTriggerActionId;
     private float newTriggerSyncTime = 0;
+    private string timelineRecordStatus = string.Empty;
 
     public MainWindow(
         Configuration config,
@@ -430,6 +431,24 @@ public sealed class MainWindow : Window
             this.newMechanicName = string.Empty;
             this.dataStore.Save();
         }
+
+        ImGui.SameLine();
+        if (ImGui.Button("记录当前战斗时间为机制") && this.SelectedEncounter != null)
+        {
+            var elapsed = this.clock.IsRunning ? this.clock.ElapsedSeconds : Math.Max(0, this.newMechanicTime);
+            var mechanic = this.timelineService.AddMechanicAtCurrentTime(
+                this.SelectedEncounter,
+                this.newMechanicName,
+                elapsed,
+                this.newMechanicPrewarn);
+            this.selectedMechanicId = mechanic.Id;
+            this.newMechanicName = string.Empty;
+            this.newMechanicTime = (float)Math.Round(elapsed, 1);
+            this.timelineRecordStatus = $"已记录：{mechanic.Name} @ {mechanic.TimeSeconds:F1}s";
+        }
+
+        if (!string.IsNullOrWhiteSpace(this.timelineRecordStatus))
+            ImGui.TextUnformatted(this.timelineRecordStatus);
 
         this.DrawMechanicCombo();
         ImGui.InputInt("读条 ActionId", ref this.newTriggerActionId);
