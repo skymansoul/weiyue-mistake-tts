@@ -1,0 +1,25 @@
+[
+  {
+    "Author": "Weiyue",
+    "Name": "Weiyue Mistake TTS",
+    "InternalName": "WeiyueMistakeTTS",
+    "AssemblyVersion": "0.1.0.0",
+    "Description": "本地记录团队成员机制失误，并在机制前通过 TTS 提醒。",
+    "ApplicableVersion": "any",
+    "RepoUrl": "https://YOUR_HOST/weiyue-mistake-tts",
+    "DownloadLinkInstall": "https://YOUR_HOST/weiyue-mistake-tts/plugins/WeiyueMistakeTTS/latest.zip",
+    "DownloadLinkUpdate": "https://YOUR_HOST/weiyue-mistake-tts/plugins/WeiyueMistakeTTS/latest.zip",
+    "DownloadLinkTesting": "https://YOUR_HOST/weiyue-mistake-tts/plugins/WeiyueMistakeTTS/latest.zip",
+    "Tags": [
+      "mistake",
+      "tts",
+      "timeline",
+      "raid"
+    ],
+    "DalamudApiLevel": 15,
+    "LoadPriority": 0,
+    "Punchline": "本地机制失误记录与 TTS 提醒",
+    "AcceptsFeedback": true
+  }
+]
+

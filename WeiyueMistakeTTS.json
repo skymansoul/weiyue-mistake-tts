@@ -1,0 +1,15 @@
+{
+  "Author": "Weiyue",
+  "Name": "Weiyue Mistake TTS",
+  "InternalName": "WeiyueMistakeTTS",
+  "AssemblyVersion": "0.1.0.0",
+  "Description": "本地记录团队成员机制失误，并在机制前通过 TTS 提醒。",
+  "Punchline": "本地机制失误记录与 TTS 提醒",
+  "ApplicableVersion": "any",
+  "Tags": [
+    "mistake",
+    "tts",
+    "timeline",
+    "raid"
+  ]
+}
