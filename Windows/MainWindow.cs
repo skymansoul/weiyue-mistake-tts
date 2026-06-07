@@ -70,7 +70,7 @@ public sealed class MainWindow : Window
         PartyService partyService,
         IClientState clientState,
         Action saveConfig)
-        : base("卫月犯错提醒###WeiyueMistakeTTS")
+        : base("Team Mistake###WeiyueMistakeTTS")
     {
         this.config = config;
         this.dataStore = dataStore;
@@ -112,7 +112,7 @@ public sealed class MainWindow : Window
             this.clock.Stop();
         ImGui.SameLine();
         if (ImGui.Button("测试 TTS"))
-            this.ttsService.Speak("卫月犯错提醒测试");
+            this.ttsService.Speak("Team Mistake 测试");
 
         if (ImGui.BeginTabBar("main-tabs"))
         {
@@ -384,7 +384,17 @@ public sealed class MainWindow : Window
     {
         this.DrawEncounterCombo();
         var currentTerritory = (int)this.clientState.TerritoryType;
-        ImGui.TextUnformatted($"当前 TerritoryType：{currentTerritory}");
+        var currentTerritoryName = this.timelineService.GetCurrentTerritoryName(this.clientState.TerritoryType);
+        ImGui.TextUnformatted($"当前副本：{currentTerritoryName} ({currentTerritory})");
+
+        if (ImGui.Button("用当前副本创建时间轴分组"))
+        {
+            var encounter = this.timelineService.GetOrCreateEncounterForTerritory(this.clientState.TerritoryType);
+            this.selectedEncounterId = encounter.Id;
+            this.selectedMechanicId = encounter.Mechanics.FirstOrDefault()?.Id ?? string.Empty;
+            this.newEncounterName = string.Empty;
+            this.newEncounterTerritory = 0;
+        }
 
         ImGui.InputText("新副本名称", ref this.newEncounterName, 128);
         ImGui.InputInt("TerritoryType，0 表示通用", ref this.newEncounterTerritory);

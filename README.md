@@ -1,4 +1,4 @@
-# Weiyue Mistake TTS
+# Team Mistake
 
 FFXIV / Dalamud 本地犯错记录与机制前 TTS 提醒插件。
 
@@ -9,6 +9,9 @@ FFXIV / Dalamud 本地犯错记录与机制前 TTS 提醒插件。
 - 支持手动 `/wym pull` 开始时间轴
 - 支持自动进入战斗后开始计时
 - 支持时间轴提前提醒
+- 支持读取当前副本名
+- 支持用当前副本一键创建时间轴分组
+- 支持进入副本战斗后自动创建/选择当前副本时间轴并开始计时
 - 支持 Boss 读条 `ActionId` 触发器校准时间轴
 - 支持 Windows TTS 播报，失败时回退到聊天窗口提示
 - 支持多个队伍分组

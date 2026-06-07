@@ -37,7 +37,8 @@ public sealed class Plugin : IDalamudPlugin
         IClientState clientState,
         ICondition condition,
         IPartyList partyList,
-        IObjectTable objectTable)
+        IObjectTable objectTable,
+        IDataManager dataManager)
     {
         this.pluginInterface = pluginInterface;
         this.commandManager = commandManager;
@@ -47,7 +48,7 @@ public sealed class Plugin : IDalamudPlugin
 
         this.config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         this.dataStore = new DataStore(pluginInterface.ConfigDirectory.FullName);
-        this.timelineService = new TimelineService(this.dataStore);
+        this.timelineService = new TimelineService(this.dataStore, dataManager);
         this.clock = new EncounterClock();
         this.ttsService = new TtsService(this.config, chatGui);
         this.reminderService = new ReminderService(this.config, this.dataStore, this.clock, this.ttsService);
@@ -68,7 +69,7 @@ public sealed class Plugin : IDalamudPlugin
 
         this.commandManager.AddHandler("/wym", new CommandInfo(this.OnCommand)
         {
-            HelpMessage = "打开卫月犯错提醒。用法：/wym、/wym pull、/wym stop、/wym test",
+            HelpMessage = "打开 Team Mistake。用法：/wym、/wym pull、/wym stop、/wym test",
         });
 
         framework.Update += this.OnFrameworkUpdate;
@@ -112,7 +113,7 @@ public sealed class Plugin : IDalamudPlugin
 
         if (normalized.Equals("test", StringComparison.OrdinalIgnoreCase))
         {
-            this.ttsService.Speak("卫月犯错提醒测试");
+            this.ttsService.Speak("Team Mistake 测试");
             return;
         }
 
@@ -135,7 +136,10 @@ public sealed class Plugin : IDalamudPlugin
 
         var inCombat = this.condition[Dalamud.Game.ClientState.Conditions.ConditionFlag.InCombat];
         if (this.config.AutoPullDetection && inCombat && !this.wasInCombat)
+        {
+            this.timelineService.GetOrCreateEncounterForTerritory(this.clientState.TerritoryType);
             this.StartPull();
+        }
 
         if (!inCombat && this.wasInCombat && this.config.AutoPullDetection)
             this.StopPull();
