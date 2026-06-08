@@ -21,6 +21,8 @@ public sealed class Configuration : IPluginConfiguration
 
     public bool AutoLearnTimeline { get; set; } = true;
 
+    public bool AutoLearnBattleLogTimeline { get; set; } = true;
+
     public bool OnlyCurrentParty { get; set; } = false;
 
     public int MinMistakeCountToSpeak { get; set; } = 1;

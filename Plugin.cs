@@ -1,4 +1,5 @@
 using Dalamud.Game.Command;
+using Dalamud.Game.Chat;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
@@ -12,6 +13,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly IDalamudPluginInterface pluginInterface;
     private readonly ICommandManager commandManager;
     private readonly IFramework framework;
+    private readonly IChatGui chatGui;
     private readonly IClientState clientState;
     private readonly ICondition condition;
     private readonly WindowSystem windowSystem = new("WeiyueMistakeTTS");
@@ -24,6 +26,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly ReminderService reminderService;
     private readonly PartyService partyService;
     private readonly CastTriggerService castTriggerService;
+    private readonly BattleLogLearningService battleLogLearningService;
     private readonly MainWindow mainWindow;
 
     private bool wasInCombat;
@@ -43,6 +46,7 @@ public sealed class Plugin : IDalamudPlugin
         this.pluginInterface = pluginInterface;
         this.commandManager = commandManager;
         this.framework = framework;
+        this.chatGui = chatGui;
         this.clientState = clientState;
         this.condition = condition;
 
@@ -54,6 +58,7 @@ public sealed class Plugin : IDalamudPlugin
         this.reminderService = new ReminderService(this.config, this.dataStore, this.clock, this.ttsService);
         this.partyService = new PartyService(partyList, this.dataStore, objectTable);
         this.castTriggerService = new CastTriggerService(objectTable, dataManager, this.config, this.clock, this.timelineService, this.reminderService);
+        this.battleLogLearningService = new BattleLogLearningService(this.config, this.clock, this.timelineService);
 
         this.mainWindow = new MainWindow(
             this.config,
@@ -73,6 +78,7 @@ public sealed class Plugin : IDalamudPlugin
         });
 
         framework.Update += this.OnFrameworkUpdate;
+        chatGui.LogMessage += this.OnLogMessage;
         pluginInterface.UiBuilder.Draw += this.DrawUi;
         pluginInterface.UiBuilder.OpenConfigUi += this.OpenConfigUi;
     }
@@ -85,6 +91,7 @@ public sealed class Plugin : IDalamudPlugin
         this.pluginInterface.UiBuilder.Draw -= this.DrawUi;
         this.pluginInterface.UiBuilder.OpenConfigUi -= this.OpenConfigUi;
         this.framework.Update -= this.OnFrameworkUpdate;
+        this.chatGui.LogMessage -= this.OnLogMessage;
         this.windowSystem.RemoveAllWindows();
         this.commandManager.RemoveHandler("/wym");
         this.ttsService.Dispose();
@@ -151,11 +158,18 @@ public sealed class Plugin : IDalamudPlugin
         this.reminderService.Tick(encounter, this.currentPartyMemberIds);
     }
 
+    private void OnLogMessage(ILogMessage message)
+    {
+        var encounter = this.timelineService.CurrentEncounter(this.clientState.TerritoryType);
+        this.battleLogLearningService.Learn(encounter, message);
+    }
+
     private void StartPull()
     {
         this.clock.Start();
         this.reminderService.Reset();
         this.castTriggerService.Reset();
+        this.battleLogLearningService.Reset();
     }
 
     private void StopPull()
@@ -163,6 +177,7 @@ public sealed class Plugin : IDalamudPlugin
         this.clock.Stop();
         this.reminderService.Reset();
         this.castTriggerService.Reset();
+        this.battleLogLearningService.Reset();
     }
 
     private void DrawUi()

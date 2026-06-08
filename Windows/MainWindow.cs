@@ -538,6 +538,13 @@ public sealed class MainWindow : Window
             this.saveConfig();
         }
 
+        var autoLearnBattleLog = this.config.AutoLearnBattleLogTimeline;
+        if (ImGui.Checkbox("自动学习无读条技能（记录战斗日志技能名）", ref autoLearnBattleLog))
+        {
+            this.config.AutoLearnBattleLogTimeline = autoLearnBattleLog;
+            this.saveConfig();
+        }
+
         var onlyCurrentParty = this.config.OnlyCurrentParty;
         if (ImGui.Checkbox("只播报当前队伍成员", ref onlyCurrentParty))
         {

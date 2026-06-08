@@ -122,6 +122,48 @@ public sealed class TimelineService
         return mechanic;
     }
 
+    public MechanicDefinition? LearnLogMechanic(
+        EncounterDefinition encounter,
+        string mechanicName,
+        double elapsedSeconds,
+        double prewarnSeconds)
+    {
+        if (string.IsNullOrWhiteSpace(mechanicName))
+            return null;
+
+        var name = mechanicName.Trim();
+        var duplicate = encounter.Mechanics.Any(mechanic =>
+            mechanic.Name.Equals(name, StringComparison.OrdinalIgnoreCase) &&
+            Math.Abs(mechanic.TimeSeconds - elapsedSeconds) <= 2);
+
+        if (duplicate)
+            return null;
+
+        var mechanic = new MechanicDefinition
+        {
+            Name = name,
+            TimeSeconds = Math.Max(0, elapsedSeconds),
+            PrewarnSeconds = Math.Max(0, prewarnSeconds),
+            Triggers =
+            [
+                new MechanicTrigger
+                {
+                    Type = "BattleLog",
+                    SyncToTimeSeconds = Math.Max(0, elapsedSeconds),
+                    FireReminderImmediately = false,
+                },
+            ],
+        };
+
+        encounter.Mechanics.Add(mechanic);
+        encounter.Mechanics = encounter.Mechanics
+            .OrderBy(x => x.TimeSeconds)
+            .ToList();
+        this.SelectedEncounterId = encounter.Id;
+        this.dataStore.Save();
+        return mechanic;
+    }
+
     public EncounterDefinition GetOrCreateEncounterForTerritory(uint territoryType)
     {
         var existing = this.dataStore.Data.Encounters.FirstOrDefault(x => x.TerritoryType == territoryType);
