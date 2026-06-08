@@ -76,7 +76,7 @@ public sealed class FflogsImportService : IDisposable
             return this.config.FflogsAccessToken.Trim();
 
         await Task.CompletedTask.ConfigureAwait(false);
-        throw new InvalidOperationException("FFLogs 官方 API 需要访问令牌。当前界面已隐藏开发者凭据输入，请使用已内置/预配置的 token 构建，或提供一个代理接口。");
+        throw new InvalidOperationException("请先点击“导入/更新 FFLogs Token”，首次导入后会一直复用，直到 token 失效。");
     }
 
     private async Task<FflogsEventPage> FetchEventsAsync(
@@ -130,6 +130,9 @@ public sealed class FflogsImportService : IDisposable
 
             using var response = await this.httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
             var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            if (response.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden)
+                throw new UnauthorizedAccessException("FFLogs Token 已失效，请重新导入。");
+
             if (!response.IsSuccessStatusCode)
                 throw new InvalidOperationException($"FFLogs API 请求失败：{(int)response.StatusCode} {response.ReasonPhrase} {json}");
 
@@ -293,6 +296,11 @@ public sealed class FflogsImportService : IDisposable
         var message = errors[0].TryGetProperty("message", out var messageElement)
             ? messageElement.GetString()
             : errors[0].ToString();
+        if (message?.Contains("Unauthenticated", StringComparison.OrdinalIgnoreCase) == true ||
+            message?.Contains("Unauthorized", StringComparison.OrdinalIgnoreCase) == true ||
+            message?.Contains("invalid token", StringComparison.OrdinalIgnoreCase) == true)
+            throw new UnauthorizedAccessException("FFLogs Token 已失效，请重新导入。");
+
         throw new InvalidOperationException($"FFLogs GraphQL 错误：{message}");
     }
 

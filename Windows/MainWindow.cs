@@ -545,6 +545,20 @@ public sealed class MainWindow : Window
             this.saveConfig();
         }
 
+        var tokenState = string.IsNullOrWhiteSpace(this.config.FflogsAccessToken) ? "未导入" : "已导入";
+        ImGui.TextUnformatted($"FFLogs Token：{tokenState}");
+        if (ImGui.Button("导入/更新 FFLogs Token"))
+            this.ImportFflogsTokenFromClipboard();
+
+        ImGui.SameLine();
+        if (ImGui.Button("清除 FFLogs Token"))
+        {
+            this.config.FflogsAccessToken = string.Empty;
+            this.config.FflogsAccessTokenExpiresAtUnix = 0;
+            this.saveConfig();
+            this.fflogsImportStatus = "已清除 FFLogs Token。";
+        }
+
         var isImporting = this.fflogsImportTask is { IsCompleted: false };
         if (isImporting)
         {
@@ -557,6 +571,24 @@ public sealed class MainWindow : Window
 
         if (!string.IsNullOrWhiteSpace(this.fflogsImportStatus))
             ImGui.TextWrapped(this.fflogsImportStatus);
+    }
+
+    private void ImportFflogsTokenFromClipboard()
+    {
+        var token = ImGui.GetClipboardText().Trim();
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            this.fflogsImportStatus = "剪贴板为空，请先复制 FFLogs Access Token。";
+            return;
+        }
+
+        if (token.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+            token = token[7..].Trim();
+
+        this.config.FflogsAccessToken = token;
+        this.config.FflogsAccessTokenExpiresAtUnix = 0;
+        this.saveConfig();
+        this.fflogsImportStatus = "已导入 FFLogs Token，后续会自动复用直到失效。";
     }
 
     private async Task ImportFflogsTimelineAsync()
@@ -593,6 +625,13 @@ public sealed class MainWindow : Window
 
             var fightName = string.IsNullOrWhiteSpace(result.FightName) ? $"fight {result.FightId}" : result.FightName;
             this.fflogsImportStatus = $"FFLogs 导入完成：{fightName}，读取 {result.Events.Count} 条事件，新增 {imported} 条机制。";
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            this.config.FflogsAccessToken = string.Empty;
+            this.config.FflogsAccessTokenExpiresAtUnix = 0;
+            this.saveConfig();
+            this.fflogsImportStatus = $"FFLogs 导入失败：{ex.Message}";
         }
         catch (Exception ex)
         {
