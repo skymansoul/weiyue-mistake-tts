@@ -63,7 +63,6 @@ public sealed class MainWindow : Window
     private float newTriggerSyncTime = 0;
     private string timelineRecordStatus = string.Empty;
     private string fflogsReportInput = string.Empty;
-    private int fflogsFightId = 1;
     private string fflogsImportStatus = string.Empty;
     private Task? fflogsImportTask;
 
@@ -529,14 +528,7 @@ public sealed class MainWindow : Window
         ImGui.Separator();
         ImGui.TextUnformatted("FFLogs 时间轴导入");
 
-        if (ImGui.InputText("FFLogs 报告链接 / code", ref this.fflogsReportInput, 256))
-        {
-            var fightId = TryExtractFightId(this.fflogsReportInput);
-            if (fightId > 0)
-                this.fflogsFightId = fightId;
-        }
-
-        ImGui.InputInt("FFLogs fight id", ref this.fflogsFightId);
+        ImGui.InputText("FFLogs 战斗链接", ref this.fflogsReportInput, 256);
 
         var importCasts = this.config.FflogsImportCasts;
         if (ImGui.Checkbox("导入读条事件", ref importCasts))
@@ -550,32 +542,6 @@ public sealed class MainWindow : Window
         if (ImGui.Checkbox("导入伤害判定事件", ref importDamage))
         {
             this.config.FflogsImportDamageEvents = importDamage;
-            this.saveConfig();
-        }
-
-        var clientId = this.config.FflogsClientId;
-        if (ImGui.InputText("FFLogs Client ID", ref clientId, 256))
-        {
-            this.config.FflogsClientId = clientId.Trim();
-            this.config.FflogsAccessToken = string.Empty;
-            this.config.FflogsAccessTokenExpiresAtUnix = 0;
-            this.saveConfig();
-        }
-
-        var clientSecret = this.config.FflogsClientSecret;
-        if (ImGui.InputText("FFLogs Client Secret", ref clientSecret, 256))
-        {
-            this.config.FflogsClientSecret = clientSecret.Trim();
-            this.config.FflogsAccessToken = string.Empty;
-            this.config.FflogsAccessTokenExpiresAtUnix = 0;
-            this.saveConfig();
-        }
-
-        var accessToken = this.config.FflogsAccessToken;
-        if (ImGui.InputText("FFLogs Access Token（可选）", ref accessToken, 512))
-        {
-            this.config.FflogsAccessToken = accessToken.Trim();
-            this.config.FflogsAccessTokenExpiresAtUnix = 0;
             this.saveConfig();
         }
 
@@ -606,7 +572,7 @@ public sealed class MainWindow : Window
         {
             this.fflogsImportStatus = "正在请求 FFLogs...";
             var result = await this.fflogsImportService
-                .ImportTimelineAsync(this.fflogsReportInput, this.fflogsFightId)
+                .ImportTimelineAsync(this.fflogsReportInput)
                 .ConfigureAwait(false);
 
             var encounter = this.dataStore.Data.Encounters.FirstOrDefault(x => x.Id == encounterId);
@@ -886,27 +852,6 @@ public sealed class MainWindow : Window
         }
 
         ImGui.EndCombo();
-    }
-
-    private static int TryExtractFightId(string input)
-    {
-        if (string.IsNullOrWhiteSpace(input))
-            return 0;
-
-        var text = input.Trim();
-        if (Uri.TryCreate(text, UriKind.Absolute, out var uri))
-            text = $"{uri.Query}&{uri.Fragment}";
-
-        foreach (var part in text.Split(['?', '#', '&'], StringSplitOptions.RemoveEmptyEntries))
-        {
-            var pair = part.Split('=', 2);
-            if (pair.Length == 2 &&
-                pair[0].Equals("fight", StringComparison.OrdinalIgnoreCase) &&
-                int.TryParse(pair[1], out var fightId))
-                return fightId;
-        }
-
-        return 0;
     }
 
     private static readonly JsonSerializerOptions JsonOptions = new()

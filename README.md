@@ -64,19 +64,20 @@ https://github.com/skymansoul/dalamud-plugin-repo
 1. 进入副本后打开 `/wym`
 2. 在“队伍分组”中一键导入当前小队
 3. 在“时间轴”中使用当前副本创建时间轴分组
-4. 选择自动学习，或粘贴 FFLogs 报告链接和 fight id 导入时间轴
+4. 选择自动学习，或粘贴完整 FFLogs 战斗链接导入时间轴
 5. 整理机制名称、删除不需要提醒的普通技能
 6. 在“犯错记录”中记录成员、机制、错误类型和备注
 7. 下一次同机制到来前，插件会自动 TTS 提醒
 
 ## FFLogs 导入
 
-在“时间轴”页的“FFLogs 时间轴导入”区域填写：
+在“时间轴”页的“FFLogs 时间轴导入”区域粘贴完整战斗链接：
 
-- `FFLogs 报告链接 / code`：例如 `https://www.fflogs.com/reports/xxxx#fight=12`
-- `FFLogs fight id`：如果链接带 `#fight=12`，插件会自动填入
-- `FFLogs Client ID / Client Secret`：插件会自动用 client credentials 获取 API token
-- 或者直接填写 `FFLogs Access Token`
+```text
+https://www.fflogs.com/reports/7WcX6qxDVJGMvNPk?fight=11&type=damage-done
+```
+
+插件会自动解析报告 code 和 `fight` 参数，不需要用户单独填写 fight id，也不需要用户输入 FFLogs Client ID 或 Client Secret。
 
 导入内容只包含敌方事件的技能名、技能 ID 和相对战斗时间，用于生成本地机制时间轴。插件不会导入 DPS、排名、死亡归因或个人表现数据。
 
@@ -87,5 +88,5 @@ https://github.com/skymansoul/dalamud-plugin-repo
 - 不自动按技能
 - 不自动移动
 - 不向队伍频道发送消息
-- FFLogs 凭据和 token 保存在本地 Dalamud 插件配置中
+- FFLogs 官方 API 需要访问令牌；当前界面不会向普通用户暴露 Client ID / Client Secret 输入
 - 自动学习和 FFLogs 导入的时间轴可能包含普通技能，需要用户手动删减整理

@@ -1,4 +1,3 @@
-using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 
@@ -7,28 +6,27 @@ namespace WeiyueMistakeTTS.Services;
 public sealed class FflogsImportService : IDisposable
 {
     private const string GraphQlEndpoint = "https://www.fflogs.com/api/v2/client";
-    private const string TokenEndpoint = "https://www.fflogs.com/oauth/token";
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     private readonly Configuration config;
-    private readonly Action saveConfig;
     private readonly HttpClient httpClient = new();
 
-    public FflogsImportService(Configuration config, Action saveConfig)
+    public FflogsImportService(Configuration config)
     {
         this.config = config;
-        this.saveConfig = saveConfig;
     }
 
-    public async Task<FflogsTimelineImportResult> ImportTimelineAsync(string reportInput, int fightId, CancellationToken cancellationToken = default)
+    public async Task<FflogsTimelineImportResult> ImportTimelineAsync(string reportInput, CancellationToken cancellationToken = default)
     {
-        var reportCode = ParseReportCode(reportInput);
+        var reportLocation = ParseReportLocation(reportInput);
+        var reportCode = reportLocation.ReportCode;
+        var fightId = reportLocation.FightId;
         if (string.IsNullOrWhiteSpace(reportCode))
             throw new InvalidOperationException("请填写 FFLogs 报告链接或报告 code。");
 
         if (fightId <= 0)
-            throw new InvalidOperationException("请填写 FFLogs 的 fight id。");
+            throw new InvalidOperationException("链接中没有 fight 参数，请打开 FFLogs 的具体战斗后复制完整链接。");
 
         var accessToken = await this.GetAccessTokenAsync(cancellationToken).ConfigureAwait(false);
         var dataTypes = new List<string>();
@@ -74,43 +72,11 @@ public sealed class FflogsImportService : IDisposable
             this.config.FflogsAccessTokenExpiresAtUnix > DateTimeOffset.UtcNow.AddMinutes(5).ToUnixTimeSeconds())
             return this.config.FflogsAccessToken.Trim();
 
-        if (!string.IsNullOrWhiteSpace(this.config.FflogsClientId) &&
-            !string.IsNullOrWhiteSpace(this.config.FflogsClientSecret))
-        {
-            using var request = new HttpRequestMessage(HttpMethod.Post, TokenEndpoint);
-            var credential = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{this.config.FflogsClientId.Trim()}:{this.config.FflogsClientSecret.Trim()}"));
-            request.Headers.Authorization = new AuthenticationHeaderValue("Basic", credential);
-            request.Content = new FormUrlEncodedContent(new Dictionary<string, string>
-            {
-                ["grant_type"] = "client_credentials",
-            });
-
-            using var response = await this.httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
-            var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode)
-                throw new InvalidOperationException($"FFLogs token 获取失败：{(int)response.StatusCode} {response.ReasonPhrase} {json}");
-
-            using var document = JsonDocument.Parse(json);
-            var root = document.RootElement;
-            var token = root.TryGetProperty("access_token", out var tokenElement)
-                ? tokenElement.GetString()
-                : string.Empty;
-            if (string.IsNullOrWhiteSpace(token))
-                throw new InvalidOperationException("FFLogs token 响应中没有 access_token。");
-
-            var expiresIn = root.TryGetProperty("expires_in", out var expiresElement)
-                ? expiresElement.GetInt64()
-                : 3600;
-            this.config.FflogsAccessToken = token;
-            this.config.FflogsAccessTokenExpiresAtUnix = DateTimeOffset.UtcNow.AddSeconds(Math.Max(60, expiresIn - 60)).ToUnixTimeSeconds();
-            this.saveConfig();
-            return token;
-        }
-
         if (!string.IsNullOrWhiteSpace(this.config.FflogsAccessToken))
             return this.config.FflogsAccessToken.Trim();
 
-        throw new InvalidOperationException("请先填写 FFLogs Access Token，或填写 Client ID / Client Secret 自动获取 token。");
+        await Task.CompletedTask.ConfigureAwait(false);
+        throw new InvalidOperationException("FFLogs 官方 API 需要访问令牌。当前界面已隐藏开发者凭据输入，请使用已内置/预配置的 token 构建，或提供一个代理接口。");
     }
 
     private async Task<FflogsEventPage> FetchEventsAsync(
@@ -159,7 +125,7 @@ public sealed class FflogsImportService : IDisposable
             };
             var payload = JsonSerializer.Serialize(new { query, variables }, JsonOptions);
             using var request = new HttpRequestMessage(HttpMethod.Post, GraphQlEndpoint);
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+            request.Headers.TryAddWithoutValidation("Authorization", $"Bearer {accessToken}");
             request.Content = new StringContent(payload, Encoding.UTF8, "application/json");
 
             using var response = await this.httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
@@ -270,18 +236,22 @@ public sealed class FflogsImportService : IDisposable
         return property.GetDouble();
     }
 
-    private static string ParseReportCode(string input)
+    private static FflogsReportLocation ParseReportLocation(string input)
     {
         var text = input.Trim();
         if (string.IsNullOrWhiteSpace(text))
-            return string.Empty;
+            return new FflogsReportLocation(string.Empty, 0);
 
         if (Uri.TryCreate(text, UriKind.Absolute, out var uri))
         {
             var parts = uri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
             var reportsIndex = Array.FindIndex(parts, part => part.Equals("reports", StringComparison.OrdinalIgnoreCase));
+            var reportCode = string.Empty;
             if (reportsIndex >= 0 && reportsIndex + 1 < parts.Length)
-                return parts[reportsIndex + 1].Trim();
+                reportCode = parts[reportsIndex + 1].Trim();
+
+            var fightId = TryExtractFightId($"{uri.Query}&{uri.Fragment}");
+            return new FflogsReportLocation(reportCode, fightId);
         }
 
         var hashIndex = text.IndexOf('#', StringComparison.Ordinal);
@@ -291,7 +261,21 @@ public sealed class FflogsImportService : IDisposable
         if (queryIndex >= 0)
             text = text[..queryIndex];
 
-        return text.Trim().Trim('/');
+        return new FflogsReportLocation(text.Trim().Trim('/'), 0);
+    }
+
+    private static int TryExtractFightId(string input)
+    {
+        foreach (var part in input.Split(['?', '#', '&'], StringSplitOptions.RemoveEmptyEntries))
+        {
+            var pair = part.Split('=', 2);
+            if (pair.Length == 2 &&
+                pair[0].Equals("fight", StringComparison.OrdinalIgnoreCase) &&
+                int.TryParse(pair[1], out var fightId))
+                return fightId;
+        }
+
+        return 0;
     }
 
     private static string MakeTimelineEventKey(ImportedTimelineEvent timelineEvent)
@@ -313,6 +297,8 @@ public sealed class FflogsImportService : IDisposable
     }
 
     private sealed record FflogsEventPage(string ReportTitle, string FightName, List<ImportedTimelineEvent> Events);
+
+    private sealed record FflogsReportLocation(string ReportCode, int FightId);
 }
 
 public sealed record FflogsTimelineImportResult(

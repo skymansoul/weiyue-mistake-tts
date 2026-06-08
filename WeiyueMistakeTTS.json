@@ -2,7 +2,7 @@
   "Author": "M15tak3",
   "Name": "Team Mistake",
   "InternalName": "WeiyueMistakeTTS",
-  "AssemblyVersion": "0.1.6.0",
+  "AssemblyVersion": "0.1.7.0",
   "Description": "Local team mistake tracking with timeline TTS reminders. Supports auto learning and FFLogs timeline import.",
   "Punchline": "Team mistake tracking and TTS reminders",
   "ApplicableVersion": "any",
