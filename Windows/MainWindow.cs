@@ -531,6 +531,13 @@ public sealed class MainWindow : Window
             this.saveConfig();
         }
 
+        var autoLearn = this.config.AutoLearnTimeline;
+        if (ImGui.Checkbox("自动学习时间轴（记录 Boss 读条）", ref autoLearn))
+        {
+            this.config.AutoLearnTimeline = autoLearn;
+            this.saveConfig();
+        }
+
         var onlyCurrentParty = this.config.OnlyCurrentParty;
         if (ImGui.Checkbox("只播报当前队伍成员", ref onlyCurrentParty))
         {

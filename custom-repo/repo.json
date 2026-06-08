@@ -3,7 +3,7 @@
     "Author": "Weiyue",
     "Name": "Team Mistake",
     "InternalName": "WeiyueMistakeTTS",
-    "AssemblyVersion": "0.1.3.0",
+    "AssemblyVersion": "0.1.4.0",
     "Description": "本地记录团队成员机制失误，并在机制前通过 TTS 提醒。",
     "ApplicableVersion": "any",
     "RepoUrl": "https://github.com/skymansoul/weiyue-mistake-tts",

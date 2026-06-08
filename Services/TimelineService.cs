@@ -79,6 +79,49 @@ public sealed class TimelineService
         return mechanic;
     }
 
+    public MechanicDefinition? LearnCastMechanic(
+        EncounterDefinition encounter,
+        uint actionId,
+        string actionName,
+        double elapsedSeconds,
+        double prewarnSeconds)
+    {
+        if (actionId == 0 || string.IsNullOrWhiteSpace(actionName))
+            return null;
+
+        var duplicate = encounter.Mechanics.Any(mechanic =>
+            mechanic.Triggers.Any(trigger => trigger.ActionId == actionId) &&
+            Math.Abs(mechanic.TimeSeconds - elapsedSeconds) <= 2);
+
+        if (duplicate)
+            return null;
+
+        var mechanic = new MechanicDefinition
+        {
+            Name = actionName.Trim(),
+            TimeSeconds = Math.Max(0, elapsedSeconds),
+            PrewarnSeconds = Math.Max(0, prewarnSeconds),
+            Triggers =
+            [
+                new MechanicTrigger
+                {
+                    Type = "CastStart",
+                    ActionId = actionId,
+                    SyncToTimeSeconds = Math.Max(0, elapsedSeconds),
+                    FireReminderImmediately = false,
+                },
+            ],
+        };
+
+        encounter.Mechanics.Add(mechanic);
+        encounter.Mechanics = encounter.Mechanics
+            .OrderBy(x => x.TimeSeconds)
+            .ToList();
+        this.SelectedEncounterId = encounter.Id;
+        this.dataStore.Save();
+        return mechanic;
+    }
+
     public EncounterDefinition GetOrCreateEncounterForTerritory(uint territoryType)
     {
         var existing = this.dataStore.Data.Encounters.FirstOrDefault(x => x.TerritoryType == territoryType);

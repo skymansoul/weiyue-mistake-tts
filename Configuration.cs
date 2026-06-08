@@ -19,10 +19,11 @@ public sealed class Configuration : IPluginConfiguration
 
     public bool AutoPullDetection { get; set; } = true;
 
+    public bool AutoLearnTimeline { get; set; } = true;
+
     public bool OnlyCurrentParty { get; set; } = false;
 
     public int MinMistakeCountToSpeak { get; set; } = 1;
 
     public string ReminderTemplate { get; set; } = "{name}注意，马上是{mechanic}，上次问题：{note}";
 }
-
