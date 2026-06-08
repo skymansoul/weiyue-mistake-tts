@@ -23,6 +23,18 @@ public sealed class Configuration : IPluginConfiguration
 
     public bool AutoLearnBattleLogTimeline { get; set; } = true;
 
+    public bool FflogsImportCasts { get; set; } = true;
+
+    public bool FflogsImportDamageEvents { get; set; } = true;
+
+    public string FflogsClientId { get; set; } = string.Empty;
+
+    public string FflogsClientSecret { get; set; } = string.Empty;
+
+    public string FflogsAccessToken { get; set; } = string.Empty;
+
+    public long FflogsAccessTokenExpiresAtUnix { get; set; }
+
     public bool OnlyCurrentParty { get; set; } = false;
 
     public int MinMistakeCountToSpeak { get; set; } = 1;

@@ -35,6 +35,7 @@ public sealed class MainWindow : Window
     private readonly EncounterClock clock;
     private readonly TtsService ttsService;
     private readonly PartyService partyService;
+    private readonly FflogsImportService fflogsImportService;
     private readonly IClientState clientState;
     private readonly Action saveConfig;
 
@@ -61,6 +62,10 @@ public sealed class MainWindow : Window
     private int newTriggerActionId;
     private float newTriggerSyncTime = 0;
     private string timelineRecordStatus = string.Empty;
+    private string fflogsReportInput = string.Empty;
+    private int fflogsFightId = 1;
+    private string fflogsImportStatus = string.Empty;
+    private Task? fflogsImportTask;
 
     public MainWindow(
         Configuration config,
@@ -69,6 +74,7 @@ public sealed class MainWindow : Window
         EncounterClock clock,
         TtsService ttsService,
         PartyService partyService,
+        FflogsImportService fflogsImportService,
         IClientState clientState,
         Action saveConfig)
         : base("Team Mistake###WeiyueMistakeTTS")
@@ -79,6 +85,7 @@ public sealed class MainWindow : Window
         this.clock = clock;
         this.ttsService = ttsService;
         this.partyService = partyService;
+        this.fflogsImportService = fflogsImportService;
         this.clientState = clientState;
         this.saveConfig = saveConfig;
 
@@ -465,6 +472,8 @@ public sealed class MainWindow : Window
             this.dataStore.Save();
         }
 
+        this.DrawFflogsImportSection();
+
         ImGui.Separator();
 
         if (this.SelectedEncounter == null)
@@ -512,6 +521,116 @@ public sealed class MainWindow : Window
             }
 
             ImGui.EndTable();
+        }
+    }
+
+    private void DrawFflogsImportSection()
+    {
+        ImGui.Separator();
+        ImGui.TextUnformatted("FFLogs 时间轴导入");
+
+        if (ImGui.InputText("FFLogs 报告链接 / code", ref this.fflogsReportInput, 256))
+        {
+            var fightId = TryExtractFightId(this.fflogsReportInput);
+            if (fightId > 0)
+                this.fflogsFightId = fightId;
+        }
+
+        ImGui.InputInt("FFLogs fight id", ref this.fflogsFightId);
+
+        var importCasts = this.config.FflogsImportCasts;
+        if (ImGui.Checkbox("导入读条事件", ref importCasts))
+        {
+            this.config.FflogsImportCasts = importCasts;
+            this.saveConfig();
+        }
+
+        ImGui.SameLine();
+        var importDamage = this.config.FflogsImportDamageEvents;
+        if (ImGui.Checkbox("导入伤害判定事件", ref importDamage))
+        {
+            this.config.FflogsImportDamageEvents = importDamage;
+            this.saveConfig();
+        }
+
+        var clientId = this.config.FflogsClientId;
+        if (ImGui.InputText("FFLogs Client ID", ref clientId, 256))
+        {
+            this.config.FflogsClientId = clientId.Trim();
+            this.config.FflogsAccessToken = string.Empty;
+            this.config.FflogsAccessTokenExpiresAtUnix = 0;
+            this.saveConfig();
+        }
+
+        var clientSecret = this.config.FflogsClientSecret;
+        if (ImGui.InputText("FFLogs Client Secret", ref clientSecret, 256))
+        {
+            this.config.FflogsClientSecret = clientSecret.Trim();
+            this.config.FflogsAccessToken = string.Empty;
+            this.config.FflogsAccessTokenExpiresAtUnix = 0;
+            this.saveConfig();
+        }
+
+        var accessToken = this.config.FflogsAccessToken;
+        if (ImGui.InputText("FFLogs Access Token（可选）", ref accessToken, 512))
+        {
+            this.config.FflogsAccessToken = accessToken.Trim();
+            this.config.FflogsAccessTokenExpiresAtUnix = 0;
+            this.saveConfig();
+        }
+
+        var isImporting = this.fflogsImportTask is { IsCompleted: false };
+        if (isImporting)
+        {
+            ImGui.TextUnformatted("正在导入 FFLogs 时间轴...");
+        }
+        else if (ImGui.Button("从 FFLogs 导入到当前时间轴"))
+        {
+            this.fflogsImportTask = this.ImportFflogsTimelineAsync();
+        }
+
+        if (!string.IsNullOrWhiteSpace(this.fflogsImportStatus))
+            ImGui.TextWrapped(this.fflogsImportStatus);
+    }
+
+    private async Task ImportFflogsTimelineAsync()
+    {
+        var encounterId = this.SelectedEncounter?.Id;
+        if (string.IsNullOrWhiteSpace(encounterId))
+        {
+            this.fflogsImportStatus = "请先选择一个时间轴分组。";
+            return;
+        }
+
+        try
+        {
+            this.fflogsImportStatus = "正在请求 FFLogs...";
+            var result = await this.fflogsImportService
+                .ImportTimelineAsync(this.fflogsReportInput, this.fflogsFightId)
+                .ConfigureAwait(false);
+
+            var encounter = this.dataStore.Data.Encounters.FirstOrDefault(x => x.Id == encounterId);
+            if (encounter == null)
+            {
+                this.fflogsImportStatus = "导入失败：当前时间轴分组不存在。";
+                return;
+            }
+
+            var imported = this.timelineService.ImportMechanics(
+                encounter,
+                result.Events,
+                this.config.DefaultPrewarnSeconds);
+
+            this.selectedEncounterId = encounter.Id;
+            this.timelineService.SelectedEncounterId = encounter.Id;
+            this.selectedMechanicId = encounter.Mechanics.FirstOrDefault()?.Id ?? string.Empty;
+
+            var fightName = string.IsNullOrWhiteSpace(result.FightName) ? $"fight {result.FightId}" : result.FightName;
+            this.fflogsImportStatus = $"FFLogs 导入完成：{fightName}，读取 {result.Events.Count} 条事件，新增 {imported} 条机制。";
+        }
+        catch (Exception ex)
+        {
+            this.fflogsImportStatus = $"FFLogs 导入失败：{ex.Message}";
         }
     }
 
@@ -767,6 +886,27 @@ public sealed class MainWindow : Window
         }
 
         ImGui.EndCombo();
+    }
+
+    private static int TryExtractFightId(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+            return 0;
+
+        var text = input.Trim();
+        if (Uri.TryCreate(text, UriKind.Absolute, out var uri))
+            text = $"{uri.Query}&{uri.Fragment}";
+
+        foreach (var part in text.Split(['?', '#', '&'], StringSplitOptions.RemoveEmptyEntries))
+        {
+            var pair = part.Split('=', 2);
+            if (pair.Length == 2 &&
+                pair[0].Equals("fight", StringComparison.OrdinalIgnoreCase) &&
+                int.TryParse(pair[1], out var fightId))
+                return fightId;
+        }
+
+        return 0;
     }
 
     private static readonly JsonSerializerOptions JsonOptions = new()

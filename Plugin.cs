@@ -27,6 +27,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly PartyService partyService;
     private readonly CastTriggerService castTriggerService;
     private readonly BattleLogLearningService battleLogLearningService;
+    private readonly FflogsImportService fflogsImportService;
     private readonly MainWindow mainWindow;
 
     private bool wasInCombat;
@@ -59,6 +60,7 @@ public sealed class Plugin : IDalamudPlugin
         this.partyService = new PartyService(partyList, this.dataStore, objectTable);
         this.castTriggerService = new CastTriggerService(objectTable, dataManager, this.config, this.clock, this.timelineService, this.reminderService);
         this.battleLogLearningService = new BattleLogLearningService(this.config, this.clock, this.timelineService);
+        this.fflogsImportService = new FflogsImportService(this.config, this.SaveConfig);
 
         this.mainWindow = new MainWindow(
             this.config,
@@ -67,6 +69,7 @@ public sealed class Plugin : IDalamudPlugin
             this.clock,
             this.ttsService,
             this.partyService,
+            this.fflogsImportService,
             this.clientState,
             this.SaveConfig);
         this.mainWindow.IsOpen = this.config.MainWindowOpen;
@@ -94,6 +97,7 @@ public sealed class Plugin : IDalamudPlugin
         this.chatGui.LogMessage -= this.OnLogMessage;
         this.windowSystem.RemoveAllWindows();
         this.commandManager.RemoveHandler("/wym");
+        this.fflogsImportService.Dispose();
         this.ttsService.Dispose();
     }
 

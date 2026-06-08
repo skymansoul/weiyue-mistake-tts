@@ -164,6 +164,58 @@ public sealed class TimelineService
         return mechanic;
     }
 
+    public int ImportMechanics(
+        EncounterDefinition encounter,
+        IEnumerable<ImportedTimelineEvent> events,
+        double prewarnSeconds)
+    {
+        var imported = 0;
+
+        foreach (var timelineEvent in events.OrderBy(x => x.TimeSeconds))
+        {
+            if (string.IsNullOrWhiteSpace(timelineEvent.Name))
+                continue;
+
+            var name = timelineEvent.Name.Trim();
+            var timeSeconds = Math.Max(0, timelineEvent.TimeSeconds);
+            var duplicate = encounter.Mechanics.Any(mechanic =>
+                (timelineEvent.ActionId != 0 && mechanic.Triggers.Any(trigger => trigger.ActionId == timelineEvent.ActionId) ||
+                 mechanic.Name.Equals(name, StringComparison.OrdinalIgnoreCase)) &&
+                Math.Abs(mechanic.TimeSeconds - timeSeconds) <= 2);
+
+            if (duplicate)
+                continue;
+
+            encounter.Mechanics.Add(new MechanicDefinition
+            {
+                Name = name,
+                TimeSeconds = timeSeconds,
+                PrewarnSeconds = Math.Max(0, prewarnSeconds),
+                Triggers =
+                [
+                    new MechanicTrigger
+                    {
+                        Type = timelineEvent.SourceType,
+                        ActionId = timelineEvent.ActionId,
+                        SyncToTimeSeconds = timeSeconds,
+                        FireReminderImmediately = false,
+                    },
+                ],
+            });
+            imported++;
+        }
+
+        if (imported == 0)
+            return 0;
+
+        encounter.Mechanics = encounter.Mechanics
+            .OrderBy(x => x.TimeSeconds)
+            .ToList();
+        this.SelectedEncounterId = encounter.Id;
+        this.dataStore.Save();
+        return imported;
+    }
+
     public EncounterDefinition GetOrCreateEncounterForTerritory(uint territoryType)
     {
         var existing = this.dataStore.Data.Encounters.FirstOrDefault(x => x.TerritoryType == territoryType);
@@ -186,3 +238,5 @@ public sealed class TimelineService
         return encounter;
     }
 }
+
+public sealed record ImportedTimelineEvent(string Name, double TimeSeconds, uint ActionId, string SourceType);

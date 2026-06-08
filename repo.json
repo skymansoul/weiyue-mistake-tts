@@ -3,21 +3,23 @@
     "Author": "M15tak3",
     "Name": "Team Mistake",
     "InternalName": "WeiyueMistakeTTS",
-    "AssemblyVersion": "0.1.5.0",
-    "Description": "本地记录团队成员机制失误，并在机制前通过 TTS 提醒。",
+    "AssemblyVersion": "0.1.6.0",
+    "Description": "Local team mistake tracking with timeline TTS reminders. Supports auto learning and FFLogs timeline import.",
     "ApplicableVersion": "any",
     "RepoUrl": "https://github.com/skymansoul/dalamud-plugin-repo",
-    "DownloadLinkInstall": "file:///E:/win_c/Desktop/weiyue/bin/Release/WeiyueMistakeTTS/latest.zip",
-    "DownloadLinkUpdate": "file:///E:/win_c/Desktop/weiyue/bin/Release/WeiyueMistakeTTS/latest.zip",
-    "DownloadLinkTesting": "file:///E:/win_c/Desktop/weiyue/bin/Release/WeiyueMistakeTTS/latest.zip",
+    "DownloadLinkInstall": "https://raw.githubusercontent.com/skymansoul/dalamud-plugin-repo/main/custom-repo/plugins/WeiyueMistakeTTS/latest.zip",
+    "DownloadLinkUpdate": "https://raw.githubusercontent.com/skymansoul/dalamud-plugin-repo/main/custom-repo/plugins/WeiyueMistakeTTS/latest.zip",
+    "DownloadLinkTesting": "https://raw.githubusercontent.com/skymansoul/dalamud-plugin-repo/main/custom-repo/plugins/WeiyueMistakeTTS/latest.zip",
     "Tags": [
       "mistake",
       "tts",
       "timeline",
-      "raid"
+      "raid",
+      "fflogs"
     ],
     "DalamudApiLevel": 15,
     "LoadPriority": 0,
-    "Punchline": "团队机制失误记录与 TTS 提醒"
+    "Punchline": "Team mistake tracking and TTS reminders",
+    "AcceptsFeedback": true
   }
 ]
