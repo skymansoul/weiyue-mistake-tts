@@ -1,6 +1,6 @@
-# Weiyue Mistake TTS 自定义插件仓库
+# Dalamud 自定义插件仓库
 
-这个目录就是可上传的 Dalamud 自定义插件仓库。
+这个目录就是可上传的 Dalamud 自定义插件仓库。它可以同时包含多个插件，每个插件在 `plugins/` 下有自己的目录。
 
 ## 目录结构
 
@@ -25,25 +25,25 @@ custom-repo/
 假设最终访问地址是：
 
 ```text
-https://example.com/weiyue-mistake-tts/
+https://example.com/dalamud-plugin-repo/
 ```
 
-那么需要把 `repo.json` 中的 `YOUR_HOST/weiyue-mistake-tts` 替换成：
+那么需要把 `repo.json` 中的示例域名替换成：
 
 ```text
-example.com/weiyue-mistake-tts
+example.com/dalamud-plugin-repo
 ```
 
 最终仓库地址应为：
 
 ```text
-https://example.com/weiyue-mistake-tts/repo.json
+https://example.com/dalamud-plugin-repo/repo.json
 ```
 
 插件包地址应为：
 
 ```text
-https://example.com/weiyue-mistake-tts/plugins/WeiyueMistakeTTS/latest.zip
+https://example.com/dalamud-plugin-repo/plugins/WeiyueMistakeTTS/latest.zip
 ```
 
 ## Dalamud 添加方式
@@ -53,7 +53,7 @@ https://example.com/weiyue-mistake-tts/plugins/WeiyueMistakeTTS/latest.zip
 3. 找到 Custom Plugin Repositories
 4. 添加 `repo.json` 的 HTTP 地址
 5. 保存并刷新插件列表
-6. 搜索 `Weiyue Mistake TTS`
+6. 搜索 `Team Mistake`
 7. 安装
 
 ## 更新插件
@@ -71,4 +71,3 @@ custom-repo/plugins/WeiyueMistakeTTS/latest.zip
 
 5. 修改 `custom-repo/repo.json` 中的 `AssemblyVersion`
 6. 上传整个 `custom-repo` 目录
-

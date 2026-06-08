@@ -17,7 +17,7 @@ E:\win_c\Desktop\weiyue\custom-repo\repo.json
 GitHub Raw 仓库地址：
 
 ```text
-https://raw.githubusercontent.com/skymansoul/weiyue-mistake-tts/main/custom-repo/repo.json
+https://raw.githubusercontent.com/skymansoul/dalamud-plugin-repo/main/custom-repo/repo.json
 ```
 
 Dalamud 中添加上面这个地址即可。
@@ -38,7 +38,7 @@ Dalamud 需要能直接访问 `repo.json` 和 `latest.zip`。
 假设你创建一个 GitHub 仓库：
 
 ```text
-weiyue-mistake-tts-repo
+dalamud-plugin-repo
 ```
 
 把 `custom-repo` 里的内容提交到仓库根目录：
@@ -51,22 +51,22 @@ plugins/WeiyueMistakeTTS/latest.zip
 开启 GitHub Pages 后，地址可能是：
 
 ```text
-https://你的用户名.github.io/weiyue-mistake-tts-repo/
+https://你的用户名.github.io/dalamud-plugin-repo/
 ```
 
 那么 `repo.json` 里的地址改成：
 
 ```json
-"RepoUrl": "https://你的用户名.github.io/weiyue-mistake-tts-repo",
-"DownloadLinkInstall": "https://你的用户名.github.io/weiyue-mistake-tts-repo/plugins/WeiyueMistakeTTS/latest.zip",
-"DownloadLinkUpdate": "https://你的用户名.github.io/weiyue-mistake-tts-repo/plugins/WeiyueMistakeTTS/latest.zip",
-"DownloadLinkTesting": "https://你的用户名.github.io/weiyue-mistake-tts-repo/plugins/WeiyueMistakeTTS/latest.zip"
+"RepoUrl": "https://你的用户名.github.io/dalamud-plugin-repo",
+"DownloadLinkInstall": "https://你的用户名.github.io/dalamud-plugin-repo/plugins/WeiyueMistakeTTS/latest.zip",
+"DownloadLinkUpdate": "https://你的用户名.github.io/dalamud-plugin-repo/plugins/WeiyueMistakeTTS/latest.zip",
+"DownloadLinkTesting": "https://你的用户名.github.io/dalamud-plugin-repo/plugins/WeiyueMistakeTTS/latest.zip"
 ```
 
 队友在 Dalamud 里添加：
 
 ```text
-https://你的用户名.github.io/weiyue-mistake-tts-repo/repo.json
+https://你的用户名.github.io/dalamud-plugin-repo/repo.json
 ```
 
 ## 4. 本地内网测试
