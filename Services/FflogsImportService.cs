@@ -6,15 +6,18 @@ namespace WeiyueMistakeTTS.Services;
 public sealed class FflogsImportService : IDisposable
 {
     private const string GraphQlEndpoint = "https://www.fflogs.com/api/v2/client";
+    private const string TokenEndpoint = "https://www.fflogs.com/oauth/token";
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     private readonly Configuration config;
+    private readonly Action saveConfig;
     private readonly HttpClient httpClient = new();
 
-    public FflogsImportService(Configuration config)
+    public FflogsImportService(Configuration config, Action saveConfig)
     {
         this.config = config;
+        this.saveConfig = saveConfig;
     }
 
     public async Task<FflogsTimelineImportResult> ImportTimelineAsync(string reportInput, CancellationToken cancellationToken = default)
@@ -41,14 +44,22 @@ public sealed class FflogsImportService : IDisposable
         var fightName = string.Empty;
         var reportTitle = string.Empty;
 
-        foreach (var dataType in dataTypes)
+        try
         {
-            var page = await this.FetchEventsAsync(reportCode, fightId, dataType, accessToken, cancellationToken).ConfigureAwait(false);
-            if (!string.IsNullOrWhiteSpace(page.FightName))
-                fightName = page.FightName;
-            if (!string.IsNullOrWhiteSpace(page.ReportTitle))
-                reportTitle = page.ReportTitle;
-            events.AddRange(page.Events);
+            await FetchAllEventsAsync().ConfigureAwait(false);
+        }
+        catch (UnauthorizedAccessException) when (
+            !string.IsNullOrWhiteSpace(this.config.FflogsClientId) &&
+            !string.IsNullOrWhiteSpace(this.config.FflogsClientSecret))
+        {
+            this.config.FflogsAccessToken = string.Empty;
+            this.config.FflogsAccessTokenExpiresAtUnix = 0;
+            this.saveConfig();
+            accessToken = await this.GetAccessTokenAsync(cancellationToken, true).ConfigureAwait(false);
+            events.Clear();
+            fightName = string.Empty;
+            reportTitle = string.Empty;
+            await FetchAllEventsAsync().ConfigureAwait(false);
         }
 
         var deduped = events
@@ -59,6 +70,24 @@ public sealed class FflogsImportService : IDisposable
             .ToList();
 
         return new FflogsTimelineImportResult(reportCode, fightId, reportTitle, fightName, deduped);
+
+        async Task FetchAllEventsAsync()
+        {
+            foreach (var dataType in dataTypes)
+            {
+                var page = await this.FetchEventsAsync(reportCode, fightId, dataType, accessToken, cancellationToken).ConfigureAwait(false);
+                if (!string.IsNullOrWhiteSpace(page.FightName))
+                    fightName = page.FightName;
+                if (!string.IsNullOrWhiteSpace(page.ReportTitle))
+                    reportTitle = page.ReportTitle;
+                events.AddRange(page.Events);
+            }
+        }
+    }
+
+    public Task<string> RefreshAccessTokenAsync(CancellationToken cancellationToken = default)
+    {
+        return this.GetAccessTokenAsync(cancellationToken, true);
     }
 
     public void Dispose()
@@ -66,17 +95,50 @@ public sealed class FflogsImportService : IDisposable
         this.httpClient.Dispose();
     }
 
-    private async Task<string> GetAccessTokenAsync(CancellationToken cancellationToken)
+    private async Task<string> GetAccessTokenAsync(CancellationToken cancellationToken, bool forceRefresh = false)
     {
-        if (!string.IsNullOrWhiteSpace(this.config.FflogsAccessToken) &&
+        if (!forceRefresh &&
+            !string.IsNullOrWhiteSpace(this.config.FflogsAccessToken) &&
             this.config.FflogsAccessTokenExpiresAtUnix > DateTimeOffset.UtcNow.AddMinutes(5).ToUnixTimeSeconds())
             return this.config.FflogsAccessToken.Trim();
 
-        if (!string.IsNullOrWhiteSpace(this.config.FflogsAccessToken))
+        if (!string.IsNullOrWhiteSpace(this.config.FflogsClientId) &&
+            !string.IsNullOrWhiteSpace(this.config.FflogsClientSecret))
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, TokenEndpoint);
+            var credential = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{this.config.FflogsClientId.Trim()}:{this.config.FflogsClientSecret.Trim()}"));
+            request.Headers.TryAddWithoutValidation("Authorization", $"Basic {credential}");
+            request.Content = new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["grant_type"] = "client_credentials",
+            });
+
+            using var response = await this.httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+                throw new InvalidOperationException($"FFLogs Token 获取失败：{(int)response.StatusCode} {response.ReasonPhrase} {json}");
+
+            using var document = JsonDocument.Parse(json);
+            var root = document.RootElement;
+            var token = root.TryGetProperty("access_token", out var tokenElement)
+                ? tokenElement.GetString()
+                : string.Empty;
+            if (string.IsNullOrWhiteSpace(token))
+                throw new InvalidOperationException("FFLogs Token 响应中没有 access_token。");
+
+            var expiresIn = root.TryGetProperty("expires_in", out var expiresElement)
+                ? expiresElement.GetInt64()
+                : 3600;
+            this.config.FflogsAccessToken = token;
+            this.config.FflogsAccessTokenExpiresAtUnix = DateTimeOffset.UtcNow.AddSeconds(Math.Max(60, expiresIn - 60)).ToUnixTimeSeconds();
+            this.saveConfig();
+            return token;
+        }
+
+        if (!forceRefresh && !string.IsNullOrWhiteSpace(this.config.FflogsAccessToken))
             return this.config.FflogsAccessToken.Trim();
 
-        await Task.CompletedTask.ConfigureAwait(false);
-        throw new InvalidOperationException("请先点击“导入/更新 FFLogs Token”，首次导入后会一直复用，直到 token 失效。");
+        throw new InvalidOperationException("请先填写 FFLogs Client ID / Secret 并获取 Token，或从剪贴板导入 Access Token。");
     }
 
     private async Task<FflogsEventPage> FetchEventsAsync(

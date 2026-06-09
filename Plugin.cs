@@ -60,7 +60,7 @@ public sealed class Plugin : IDalamudPlugin
         this.partyService = new PartyService(partyList, this.dataStore, objectTable);
         this.castTriggerService = new CastTriggerService(objectTable, dataManager, this.config, this.clock, this.timelineService, this.reminderService);
         this.battleLogLearningService = new BattleLogLearningService(this.config, this.clock, this.timelineService);
-        this.fflogsImportService = new FflogsImportService(this.config);
+        this.fflogsImportService = new FflogsImportService(this.config, this.SaveConfig);
 
         this.mainWindow = new MainWindow(
             this.config,

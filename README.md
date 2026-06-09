@@ -79,7 +79,9 @@ https://www.fflogs.com/reports/7WcX6qxDVJGMvNPk?fight=11&type=damage-done
 
 插件会自动解析报告 code 和 `fight` 参数，不需要用户单独填写 fight id，也不需要用户输入 FFLogs Client ID 或 Client Secret。
 
-首次使用 FFLogs 导入前，先复制 FFLogs Access Token，然后点击“导入/更新 FFLogs Token”。插件会把 Token 保存在本地配置中，后续导入会自动复用；如果 Token 失效，插件会清除旧 Token 并提示重新导入。
+首次使用 FFLogs 导入前，在插件内填写 FFLogs Client ID 和 Client Secret，然后点击“获取/更新 FFLogs Token”。插件会把 Token 保存在本地配置中，后续导入会自动复用；如果 Token 过期并且仍保存了 Client ID / Secret，插件会自动刷新。
+
+也可以复制 FFLogs Access Token 后点击“从剪贴板导入 Access Token”。
 
 导入内容只包含敌方事件的技能名、技能 ID 和相对战斗时间，用于生成本地机制时间轴。插件不会导入 DPS、排名、死亡归因或个人表现数据。
 
@@ -90,5 +92,5 @@ https://www.fflogs.com/reports/7WcX6qxDVJGMvNPk?fight=11&type=damage-done
 - 不自动按技能
 - 不自动移动
 - 不向队伍频道发送消息
-- FFLogs 官方 API 需要访问令牌；当前界面不会向普通用户暴露 Client ID / Client Secret 输入
+- FFLogs 官方 API 需要访问令牌；Client ID、Client Secret 和 Token 都只保存在本地 Dalamud 插件配置中
 - 自动学习和 FFLogs 导入的时间轴可能包含普通技能，需要用户手动删减整理

@@ -65,6 +65,7 @@ public sealed class MainWindow : Window
     private string fflogsReportInput = string.Empty;
     private string fflogsImportStatus = string.Empty;
     private Task? fflogsImportTask;
+    private Task? fflogsTokenTask;
 
     public MainWindow(
         Configuration config,
@@ -547,7 +548,36 @@ public sealed class MainWindow : Window
 
         var tokenState = string.IsNullOrWhiteSpace(this.config.FflogsAccessToken) ? "未导入" : "已导入";
         ImGui.TextUnformatted($"FFLogs Token：{tokenState}");
-        if (ImGui.Button("导入/更新 FFLogs Token"))
+        var clientId = this.config.FflogsClientId;
+        if (ImGui.InputText("FFLogs Client ID", ref clientId, 256))
+        {
+            this.config.FflogsClientId = clientId.Trim();
+            this.config.FflogsAccessToken = string.Empty;
+            this.config.FflogsAccessTokenExpiresAtUnix = 0;
+            this.saveConfig();
+        }
+
+        var clientSecret = this.config.FflogsClientSecret;
+        if (ImGui.InputText("FFLogs Client Secret", ref clientSecret, 256, ImGuiInputTextFlags.Password))
+        {
+            this.config.FflogsClientSecret = clientSecret.Trim();
+            this.config.FflogsAccessToken = string.Empty;
+            this.config.FflogsAccessTokenExpiresAtUnix = 0;
+            this.saveConfig();
+        }
+
+        var isTokenUpdating = this.fflogsTokenTask is { IsCompleted: false };
+        if (isTokenUpdating)
+        {
+            ImGui.TextUnformatted("正在获取 FFLogs Token...");
+        }
+        else if (ImGui.Button("获取/更新 FFLogs Token"))
+        {
+            this.fflogsTokenTask = this.RefreshFflogsTokenAsync();
+        }
+
+        ImGui.SameLine();
+        if (ImGui.Button("从剪贴板导入 Access Token"))
             this.ImportFflogsTokenFromClipboard();
 
         ImGui.SameLine();
@@ -571,6 +601,20 @@ public sealed class MainWindow : Window
 
         if (!string.IsNullOrWhiteSpace(this.fflogsImportStatus))
             ImGui.TextWrapped(this.fflogsImportStatus);
+    }
+
+    private async Task RefreshFflogsTokenAsync()
+    {
+        try
+        {
+            this.fflogsImportStatus = "正在获取 FFLogs Token...";
+            await this.fflogsImportService.RefreshAccessTokenAsync().ConfigureAwait(false);
+            this.fflogsImportStatus = "FFLogs Token 获取成功，后续会自动复用并在过期时刷新。";
+        }
+        catch (Exception ex)
+        {
+            this.fflogsImportStatus = $"FFLogs Token 获取失败：{ex.Message}";
+        }
     }
 
     private void ImportFflogsTokenFromClipboard()

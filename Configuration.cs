@@ -27,6 +27,10 @@ public sealed class Configuration : IPluginConfiguration
 
     public bool FflogsImportDamageEvents { get; set; } = true;
 
+    public string FflogsClientId { get; set; } = string.Empty;
+
+    public string FflogsClientSecret { get; set; } = string.Empty;
+
     public string FflogsAccessToken { get; set; } = string.Empty;
 
     public long FflogsAccessTokenExpiresAtUnix { get; set; }
